@@ -18,7 +18,7 @@ concurrently([
   },
 ], {
   prefix: 'name',
-  killOthers: ['failure'],
+  killOthersOn: 'failure',
 }).result.then(
   () => console.log('All processes exited successfully'),
   () => console.error('One or more processes failed')

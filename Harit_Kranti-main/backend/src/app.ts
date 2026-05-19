@@ -3,6 +3,7 @@ import cors from "cors";
 import morgan from "morgan";
 import dotenv from "dotenv";
 import path from "path";
+import mongoose from "mongoose";
 
 import pestRoutes from "./routes/pestRoutes";
 import userRoutes from "./routes/userRoutes";
@@ -20,6 +21,14 @@ app.use(morgan("dev"));
 
 // Static folder for uploaded images
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
+// Lightweight health check (works even when MongoDB is in fallback mode)
+app.get("/api/health", (_req, res) => {
+  res.json({
+    ok: true,
+    mongoConnected: mongoose.connection.readyState === 1,
+  });
+});
 
 // Routes
 app.use("/api/pest", pestRoutes);

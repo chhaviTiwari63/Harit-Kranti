@@ -43,6 +43,7 @@ function MainLayout({ children }: { children: React.ReactNode }) {
 
   const handleAuthSuccess = (userData: any) => {
     setUser(userData);
+    window.dispatchEvent(new CustomEvent("harit-user-updated"));
     navigate("/dashboard");
   };
 

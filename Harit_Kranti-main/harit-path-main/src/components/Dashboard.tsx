@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { useWeather } from "@/hooks/useWeather";
+import { getHumidityLabel, getWindLabel, getPestRisk } from "@/lib/weatherApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,9 +60,7 @@ export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) 
   const [farmerName, setFarmerName] = useState("Farmer");
   const [farmerState, setFarmerState] = useState("India");
 
-  // Localized weather info
-  const [temp, setTemp] = useState("28");
-  const [weatherDesc, setWeatherDesc] = useState("Clear Sky");
+  const { current: liveWeather, loading: weatherLoading } = useWeather();
 
   // Task state
   const [tasks, setTasks] = useState<Task[]>([
@@ -136,25 +136,13 @@ export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) 
       setFarmerState(parsed.state || "Uttar Pradesh");
     }
 
-    // Try fetching live weather
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (pos) => {
-          try {
-            const res = await fetch(
-              `https://api.openweathermap.org/data/2.5/weather?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&units=metric&appid=49d8ff3c12808b60573e0301c6681d4c`
-            );
-            if (res.ok) {
-              const data = await res.json();
-              setTemp(Math.round(data.main.temp).toString());
-              setWeatherDesc(data.weather[0].description);
-            }
-          } catch {}
-        },
-        () => {}
-      );
-    }
   }, []);
+
+  const temp = liveWeather ? String(liveWeather.temp) : weatherLoading ? "…" : "28";
+  const weatherDesc = liveWeather?.condition ?? "Clear Sky";
+  const humidity = liveWeather?.humidity ?? null;
+  const windKmh = liveWeather?.windSpeed ?? null;
+  const pestRisk = liveWeather ? getPestRisk(liveWeather.temp, liveWeather.humidity) : { level: "Low", note: "Loading conditions…" };
 
   const handleToggleTask = (id: string) => {
     setTasks(
@@ -334,8 +322,12 @@ export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) 
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-3xl font-black text-gray-900">12%</div>
-              <div className="text-xs font-bold text-blue-600">Soil: Very Low</div>
+              <div className="text-3xl font-black text-gray-900">
+                {humidity != null ? `${humidity}%` : "—"}
+              </div>
+              <div className="text-xs font-bold text-blue-600 line-clamp-2">
+                {humidity != null ? getHumidityLabel(humidity) : "Loading…"}
+              </div>
             </div>
           </Card>
 
@@ -348,8 +340,12 @@ export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) 
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-3xl font-black text-gray-900">4.43 m/s</div>
-              <div className="text-xs font-semibold text-emerald-600">Excellent - Ideal for operations</div>
+              <div className="text-3xl font-black text-gray-900">
+                {windKmh != null ? `${windKmh} km/h` : "—"}
+              </div>
+              <div className="text-xs font-semibold text-emerald-600 line-clamp-2">
+                {windKmh != null ? getWindLabel(windKmh) : "Loading…"}
+              </div>
             </div>
           </Card>
 
@@ -362,8 +358,18 @@ export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) 
               </div>
             </div>
             <div className="space-y-1">
-              <div className="text-3xl font-black text-red-600">Low</div>
-              <div className="text-xs font-semibold text-gray-400">Extreme temperatures limit pest activity</div>
+              <div
+                className={`text-3xl font-black ${
+                  pestRisk.level === "High"
+                    ? "text-red-600"
+                    : pestRisk.level === "Medium"
+                      ? "text-amber-600"
+                      : "text-green-700"
+                }`}
+              >
+                {pestRisk.level}
+              </div>
+              <div className="text-xs font-semibold text-gray-400 line-clamp-2">{pestRisk.note}</div>
             </div>
           </Card>
         </div>

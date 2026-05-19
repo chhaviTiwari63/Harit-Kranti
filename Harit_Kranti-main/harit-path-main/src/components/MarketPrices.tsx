@@ -1,12 +1,24 @@
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Phone, MapPin, DollarSign } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Phone, MapPin, DollarSign, RefreshCw, Loader2 } from "lucide-react";
 
-interface CropPrice {
+type CropPriceRow = {
   crop: string;
-  avgPrice: number; // price per quintal
-}
+  avgPrice: number;
+  minPrice?: number;
+  maxPrice?: number;
+  marketsSampled?: number;
+};
+
+type MarketPricesPayload = {
+  state: string;
+  source: "gov_mandi" | "regional_estimate";
+  asOf: string;
+  crops: CropPriceRow[];
+  note?: string;
+};
 
 interface Vendor {
   name: string;
@@ -15,13 +27,37 @@ interface Vendor {
   location: string;
 }
 
-const cropPrices: CropPrice[] = [
-  { crop: "Wheat", avgPrice: 2200 },
-  { crop: "Rice", avgPrice: 2800 },
-  { crop: "Maize", avgPrice: 1900 },
-  { crop: "Soybean", avgPrice: 3500 },
-  { crop: "Sugarcane", avgPrice: 3100 },
-];
+const INDIAN_STATES = [
+  "Andhra Pradesh",
+  "Arunachal Pradesh",
+  "Assam",
+  "Bihar",
+  "Chhattisgarh",
+  "Goa",
+  "Gujarat",
+  "Haryana",
+  "Himachal Pradesh",
+  "Jharkhand",
+  "Karnataka",
+  "Kerala",
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Manipur",
+  "Meghalaya",
+  "Mizoram",
+  "Nagaland",
+  "Odisha",
+  "Punjab",
+  "Rajasthan",
+  "Sikkim",
+  "Tamil Nadu",
+  "Telangana",
+  "Tripura",
+  "Uttar Pradesh",
+  "Uttarakhand",
+  "West Bengal",
+  "Delhi",
+] as const;
 
 const vendors: Vendor[] = [
   {
@@ -50,78 +86,217 @@ const vendors: Vendor[] = [
   },
 ];
 
+function pricesUrl(state: string): string {
+  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+  const qs = new URLSearchParams({ state });
+  return `${base}/api/market/prices?${qs.toString()}`;
+}
+
+function readProfileState(): string {
+  try {
+    const raw = localStorage.getItem("user");
+    if (!raw) return "Uttar Pradesh";
+    const u = JSON.parse(raw) as { state?: string };
+    if (u.state && String(u.state).trim()) return String(u.state).trim();
+  } catch {
+    /* ignore */
+  }
+  return "Uttar Pradesh";
+}
+
 const MarketPrice = ({ onBack }: { onBack?: () => void }) => {
   const [selectedCrop, setSelectedCrop] = useState<string>("");
+  const [selectedState, setSelectedState] = useState<string>(() => readProfileState());
+  const [payload, setPayload] = useState<MarketPricesPayload | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(pricesUrl(selectedState));
+      if (!res.ok) {
+        throw new Error(`Server returned ${res.status}`);
+      }
+      const data = (await res.json()) as MarketPricesPayload;
+      setPayload(data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not load prices");
+      setPayload(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedState]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const cropPrices = useMemo(() => payload?.crops ?? [], [payload]);
 
   const filteredVendors = selectedCrop
     ? vendors.filter((v) => v.crop === selectedCrop)
     : vendors;
 
+  const asOfLabel = useMemo(() => {
+    if (!payload?.asOf) return "";
+    try {
+      return new Date(payload.asOf).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+    } catch {
+      return payload.asOf;
+    }
+  }, [payload?.asOf]);
+
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-green-700">🌾 Market Prices</h1>
-        {onBack && (
-          <Button variant="outline" onClick={onBack}>
-            ⬅ Back
+    <div className="p-6 space-y-6 max-w-6xl mx-auto">
+      <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-green-700">🌾 Market Prices</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Latest indicative rates for <span className="font-semibold text-green-800">{selectedState}</span>
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          {onBack && (
+            <Button variant="outline" onClick={onBack}>
+              ⬅ Back
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            className="border-green-300 text-green-800"
+            onClick={() => void load()}
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+            <span className="ml-2">Refresh</span>
           </Button>
+        </div>
+      </div>
+
+      <Card className="border-green-100 shadow-sm rounded-2xl">
+        <CardContent className="p-4 flex flex-col md:flex-row md:items-end gap-4">
+          <div className="flex-1 space-y-2">
+            <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Your state (mandi region)</label>
+            <select
+              value={selectedState}
+              onChange={(e) => setSelectedState(e.target.value)}
+              className="w-full h-11 rounded-xl border border-green-200 bg-white px-3 text-sm font-medium text-green-950 focus:outline-none focus:ring-2 focus:ring-green-400"
+            >
+              {INDIAN_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-gray-500">
+              Defaults to the state in your profile. Change it to compare mandi-linked prices elsewhere.
+            </p>
+          </div>
+          <div className="flex flex-col gap-1 md:items-end">
+            {payload && (
+              <>
+                <Badge
+                  variant="secondary"
+                  className={
+                    payload.source === "gov_mandi"
+                      ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                      : "bg-amber-50 text-amber-900 border border-amber-200"
+                  }
+                >
+                  {payload.source === "gov_mandi" ? "Live mandi (Gov data)" : "Regional daily index"}
+                </Badge>
+                {asOfLabel && (
+                  <span className="text-xs text-gray-500">Updated {asOfLabel}</span>
+                )}
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {error && (
+        <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm px-4 py-3">
+          {error}. Make sure the backend is running on port 5000 (or set{" "}
+          <code className="font-mono text-xs">VITE_API_BASE_URL</code> for production).
+        </div>
+      )}
+
+      {payload?.note && !error && (
+        <p className="text-xs text-gray-500 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50/80">{payload.note}</p>
+      )}
+
+      {/* Crop catalog */}
+      <div>
+        <h2 className="text-lg font-semibold text-green-900 mb-3">Crop rates (₹ / quintal)</h2>
+        {loading && !payload ? (
+          <div className="flex items-center justify-center py-16 text-green-700 gap-2">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span>Loading latest prices…</span>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {cropPrices.map((price) => (
+              <Card
+                key={price.crop}
+                className={`cursor-pointer hover:shadow-lg transition rounded-2xl border ${
+                  selectedCrop === price.crop ? "border-green-600 ring-2 ring-green-100" : "border-green-100"
+                }`}
+                onClick={() =>
+                  setSelectedCrop(selectedCrop === price.crop ? "" : price.crop)
+                }
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center justify-between text-lg">
+                    {price.crop}
+                    <DollarSign className="text-green-600 h-5 w-5" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <p className="text-gray-800">
+                    Modal / avg:{" "}
+                    <span className="font-bold text-green-700 text-lg">₹{price.avgPrice}</span>
+                    <span className="text-sm text-gray-500"> / qtl</span>
+                  </p>
+                  {(price.minPrice != null || price.maxPrice != null) && (
+                    <p className="text-xs text-gray-500">
+                      Range: ₹{price.minPrice ?? "—"} – ₹{price.maxPrice ?? "—"}
+                      {price.marketsSampled != null && price.marketsSampled > 0 && (
+                        <span className="block mt-1 text-green-700 font-medium">
+                          {price.marketsSampled} mandi snapshot{price.marketsSampled === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </div>
 
-      {/* Crop Price List */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {cropPrices.map((price) => (
-          <Card
-            key={price.crop}
-            className={`cursor-pointer hover:shadow-lg transition ${
-              selectedCrop === price.crop ? "border-green-600" : ""
-            }`}
-            onClick={() =>
-              setSelectedCrop(
-                selectedCrop === price.crop ? "" : price.crop
-              )
-            }
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                {price.crop}
-                <DollarSign className="text-green-600" />
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-gray-700">
-                Avg Rate:{" "}
-                <span className="font-bold text-green-700">
-                  ₹{price.avgPrice}/quintal
-                </span>
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Vendor List */}
       <h2 className="text-xl font-semibold mt-6">👩‍🌾 Vendors</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {filteredVendors.map((vendor, idx) => (
-          <Card key={idx} className="hover:shadow-lg transition">
+          <Card key={idx} className="hover:shadow-lg transition rounded-2xl border-green-50">
             <CardHeader>
               <CardTitle>{vendor.name}</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="flex items-center gap-2">
-                <MapPin size={18} className="text-gray-500" />{" "}
+                <MapPin size={18} className="text-gray-500 shrink-0" />
                 {vendor.location}
               </p>
               <p className="flex items-center gap-2">
                 🌱 Crop: <span className="font-semibold">{vendor.crop}</span>
               </p>
               <p className="flex items-center gap-2">
-                <Phone size={18} className="text-green-600" />{" "}
-                <a
-                  href={`tel:${vendor.contact}`}
-                  className="text-blue-600 hover:underline"
-                >
+                <Phone size={18} className="text-green-600 shrink-0" />
+                <a href={`tel:${vendor.contact}`} className="text-blue-600 hover:underline">
                   {vendor.contact}
                 </a>
               </p>

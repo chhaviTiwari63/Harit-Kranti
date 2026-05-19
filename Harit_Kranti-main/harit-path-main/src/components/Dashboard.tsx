@@ -24,6 +24,10 @@ import {
   Droplets,
   Wind,
   Bell,
+  AlertTriangle,
+  Cloud,
+  Bug,
+  CheckCheck,
 } from "lucide-react";
 
 interface DashboardProps {
@@ -36,6 +40,17 @@ interface Task {
   text: string;
   priority: "High" | "Medium" | "Low";
   completed: boolean;
+}
+
+type AlertSeverity = "high" | "critical" | "medium";
+type AlertCategory = "weather" | "pest" | "market";
+
+interface FarmAlert {
+  id: string;
+  category: AlertCategory;
+  text: string;
+  severity: AlertSeverity;
+  read: boolean;
 }
 
 export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) {
@@ -58,6 +73,59 @@ export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) 
 
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskPriority, setNewTaskPriority] = useState<"High" | "Medium" | "Low">("Medium");
+
+  const [farmAlerts, setFarmAlerts] = useState<FarmAlert[]>([
+    {
+      id: "a1",
+      category: "weather",
+      text: "Heavy rainfall expected in next 24 hours. Protect your crops and ensure proper drainage.",
+      severity: "high",
+      read: false,
+    },
+    {
+      id: "a2",
+      category: "pest",
+      text: "Brown plant hopper detected in nearby farms. Immediate action recommended.",
+      severity: "critical",
+      read: false,
+    },
+    {
+      id: "a3",
+      category: "market",
+      text: "Wheat prices increased by 8% in Ludhiana mandi. Good time to sell.",
+      severity: "medium",
+      read: false,
+    },
+    {
+      id: "a4",
+      category: "weather",
+      text: "Heatwave alert: Soil moisture evaporation rates are elevated. Increase watering cycles.",
+      severity: "high",
+      read: false,
+    },
+    {
+      id: "a5",
+      category: "pest",
+      text: "Advisory: Wheat yellow rust alert issued for neighboring state divisions.",
+      severity: "medium",
+      read: false,
+    },
+  ]);
+
+  const unreadAlertCount = farmAlerts.filter((a) => !a.read).length;
+
+  const markAlertRead = (id: string) => {
+    setFarmAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, read: true } : a)));
+  };
+
+  const markAllAlertsRead = () => {
+    if (unreadAlertCount === 0) return;
+    setFarmAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
+    toast({
+      title: "All caught up",
+      description: "Every alert in this list is marked as read.",
+    });
+  };
 
   // Load user data on mount
   useEffect(() => {
@@ -300,60 +368,127 @@ export default function Dashboard({ onNavigate, userLanguage }: DashboardProps) 
           </Card>
         </div>
 
-        {/* Dashboard Panels: Checklist & Active Alerts */}
+        {/* Dashboard Panels: Checklist & Active Alerts (catalog-style) */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Active Alerts Panel (Takes 2 Columns) */}
-          <Card id="alerts-section" className="lg:col-span-2 border border-red-100 shadow-md rounded-3xl bg-white flex flex-col p-6 space-y-4">
-            <div className="flex justify-between items-center border-b border-gray-150 pb-3">
-              <div className="space-y-1">
-                <h3 className="text-xl font-bold text-red-950 flex items-center space-x-2">
-                  <Bell className="h-5 w-5 text-red-655 animate-bounce" />
-                  <span>Active Alerts</span>
-                </h3>
-                <p className="text-xs text-gray-400 font-medium">Important notifications for your farm</p>
+          <Card id="alerts-section" className="lg:col-span-2 border border-green-100 shadow-md rounded-3xl bg-white flex flex-col overflow-hidden">
+            <div className="p-6 pb-4 border-b border-green-50 bg-gradient-to-r from-green-50/40 to-white">
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                <div className="space-y-1 min-w-0">
+                  <h3 className="text-xl font-bold text-green-900 flex flex-wrap items-center gap-2">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-green-100 text-green-700 border border-green-200/80 shrink-0">
+                      <Bell className="h-5 w-5" />
+                    </span>
+                    <span>Active Alerts</span>
+                    {unreadAlertCount > 0 && (
+                      <Badge className="bg-red-500 text-white border-0 font-bold rounded-full px-2 py-0.5 text-[10px] min-w-[1.25rem] justify-center">
+                        {unreadAlertCount}
+                      </Badge>
+                    )}
+                  </h3>
+                  <p className="text-xs text-green-700/80 font-medium">
+                    Important notifications for your farm — browse like a catalog
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={markAllAlertsRead}
+                  disabled={unreadAlertCount === 0}
+                  className="shrink-0 border-green-300 text-green-800 hover:bg-green-50 rounded-xl font-semibold gap-2"
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  Mark all as read
+                  {unreadAlertCount > 0 ? ` (${unreadAlertCount})` : ""}
+                </Button>
               </div>
-              <Badge className="bg-red-100 text-red-700 border border-red-200 font-bold px-3 py-1 rounded-full text-xs">
-                4 Active
-              </Badge>
             </div>
 
-            <div className="space-y-3 overflow-y-auto max-h-[300px] pr-1">
-              {[
-                {
-                  text: "Heavy rainfall expected in next 24 hours. Protect your crops and ensure proper drainage.",
-                  severity: "high",
-                  color: "bg-orange-50 border-orange-100 text-orange-900",
-                  badge: "bg-orange-600 text-white",
-                },
-                {
-                  text: "Brown plant hopper detected in nearby farms. Immediate action recommended.",
-                  severity: "critical",
-                  color: "bg-red-50 border-red-100 text-red-950",
-                  badge: "bg-red-600 text-white animate-pulse",
-                },
-                {
-                  text: "Heatwave alert: Soil moisture evaporation rates are elevated. Increase watering cycles.",
-                  severity: "high",
-                  color: "bg-orange-50 border-orange-100 text-orange-900",
-                  badge: "bg-orange-600 text-white",
-                },
-                {
-                  text: "Advisory: Wheat yellow rust alert issued for neighboring state divisions.",
-                  severity: "medium",
-                  color: "bg-yellow-50 border-yellow-100 text-yellow-900",
-                  badge: "bg-yellow-500 text-black",
-                },
-              ].map((alert, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center justify-between p-4 rounded-2xl border ${alert.color} hover:scale-[1.005] transition-all`}
-                >
-                  <p className="text-sm font-semibold leading-relaxed flex-1 pr-4">{alert.text}</p>
-                  <Badge className={`text-[10px] uppercase font-bold tracking-wider rounded-lg px-2.5 py-0.5 shadow-sm ${alert.badge}`}>
-                    {alert.severity}
-                  </Badge>
-                </div>
-              ))}
+            <div className="p-6 pt-5 flex-1 flex flex-col gap-4 min-h-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[340px] overflow-y-auto pr-1">
+                {farmAlerts.map((alert) => {
+                  const CategoryIcon = alert.category === "weather" ? Cloud : alert.category === "pest" ? Bug : TrendingUp;
+                  const categoryLabel =
+                    alert.category === "weather" ? "Weather" : alert.category === "pest" ? "Pest" : "Market";
+                  const severityRing =
+                    alert.severity === "critical"
+                      ? "ring-red-200"
+                      : alert.severity === "high"
+                        ? "ring-orange-200"
+                        : "ring-yellow-200";
+                  const severityBadge =
+                    alert.severity === "critical"
+                      ? "bg-red-600 text-white"
+                      : alert.severity === "high"
+                        ? "bg-orange-600 text-white"
+                        : "bg-amber-500 text-black";
+                  const iconWrap =
+                    alert.severity === "critical"
+                      ? "bg-red-50 text-red-600 border-red-100"
+                      : alert.severity === "high"
+                        ? "bg-orange-50 text-orange-600 border-orange-100"
+                        : "bg-amber-50 text-amber-700 border-amber-100";
+                  return (
+                    <Card
+                      key={alert.id}
+                      role={alert.read ? undefined : "button"}
+                      tabIndex={alert.read ? -1 : 0}
+                      onClick={() => !alert.read && markAlertRead(alert.id)}
+                      onKeyDown={(e) => {
+                        if ((e.key === "Enter" || e.key === " ") && !alert.read) {
+                          e.preventDefault();
+                          markAlertRead(alert.id);
+                        }
+                      }}
+                      className={`group relative rounded-2xl border border-green-100/80 bg-white shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden ${
+                        !alert.read ? `ring-2 ${severityRing} cursor-pointer` : "opacity-90 cursor-default"
+                      }`}
+                    >
+                      {!alert.read && (
+                        <span
+                          className="absolute top-3 right-3 h-2 w-2 rounded-full bg-green-500 ring-2 ring-white"
+                          aria-label="Unread"
+                        />
+                      )}
+                      <CardContent className="p-4 flex flex-col gap-3 h-full">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${iconWrap}`}>
+                            <CategoryIcon className="h-5 w-5" />
+                          </div>
+                          <Badge variant="secondary" className="text-[10px] font-bold uppercase tracking-wide bg-green-50 text-green-800 border border-green-100">
+                            {categoryLabel}
+                          </Badge>
+                        </div>
+                        <p className={`text-sm font-semibold leading-snug text-gray-800 flex-1 ${alert.read ? "text-gray-500" : ""}`}>
+                          {alert.text}
+                        </p>
+                        <div className="flex items-center justify-between pt-1 border-t border-gray-50">
+                          <div className="flex items-center gap-1.5 text-amber-700">
+                            <AlertTriangle className="h-4 w-4 shrink-0" />
+                            <span className="text-[11px] font-bold uppercase text-gray-500">Priority</span>
+                          </div>
+                          <Badge className={`text-[10px] uppercase font-bold tracking-wider rounded-lg px-2.5 py-0.5 ${severityBadge}`}>
+                            {alert.severity}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full border-green-200 text-green-800 hover:bg-green-50 rounded-xl font-semibold"
+                onClick={() =>
+                  toast({
+                    title: "All alerts",
+                    description: `You have ${farmAlerts.length} items in this catalog. Full history view can be added here.`,
+                  })
+                }
+              >
+                View all alerts ({farmAlerts.length})
+              </Button>
             </div>
           </Card>
 

@@ -7,6 +7,7 @@ import mongoose from "mongoose";
 
 import pestRoutes from "./routes/pestRoutes";
 import userRoutes from "./routes/userRoutes";
+import marketRoutes from "./routes/marketRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -33,6 +34,7 @@ app.get("/api/health", (_req, res) => {
 // Routes
 app.use("/api/pest", pestRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/market", marketRoutes);
 
 // Global error handler
 app.use(errorHandler);

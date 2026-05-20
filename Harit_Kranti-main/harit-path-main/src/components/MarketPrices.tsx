@@ -4,21 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Phone, MapPin, DollarSign, RefreshCw, Loader2 } from "lucide-react";
 
-type CropPriceRow = {
-  crop: string;
-  avgPrice: number;
-  minPrice?: number;
-  maxPrice?: number;
-  marketsSampled?: number;
-};
-
-type MarketPricesPayload = {
-  state: string;
-  source: "gov_mandi" | "regional_estimate";
-  asOf: string;
-  crops: CropPriceRow[];
-  note?: string;
-};
+import {
+  fetchMarketPrices,
+  type MarketPricesPayload,
+} from "@/lib/marketPricesClient";
 
 interface Vendor {
   name: string;
@@ -86,12 +75,6 @@ const vendors: Vendor[] = [
   },
 ];
 
-function pricesUrl(state: string): string {
-  const base = (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ?? "";
-  const qs = new URLSearchParams({ state });
-  return `${base}/api/market/prices?${qs.toString()}`;
-}
-
 function readProfileState(): string {
   try {
     const raw = localStorage.getItem("user");
@@ -109,20 +92,17 @@ const MarketPrice = ({ onBack }: { onBack?: () => void }) => {
   const [selectedState, setSelectedState] = useState<string>(() => readProfileState());
   const [payload, setPayload] = useState<MarketPricesPayload | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [warning, setWarning] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
-    setError(null);
+    setWarning(null);
     try {
-      const res = await fetch(pricesUrl(selectedState));
-      if (!res.ok) {
-        throw new Error(`Server returned ${res.status}`);
-      }
-      const data = (await res.json()) as MarketPricesPayload;
+      const { data, usedFallback, warning: w } = await fetchMarketPrices(selectedState);
       setPayload(data);
+      setWarning(usedFallback ? w ?? null : null);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load prices");
+      setWarning(e instanceof Error ? e.message : "Could not load prices");
       setPayload(null);
     } finally {
       setLoading(false);
@@ -219,14 +199,13 @@ const MarketPrice = ({ onBack }: { onBack?: () => void }) => {
         </CardContent>
       </Card>
 
-      {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm px-4 py-3">
-          {error}. Make sure the backend is running on port 5000 (or set{" "}
-          <code className="font-mono text-xs">VITE_API_BASE_URL</code> for production).
+      {warning && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 text-amber-900 text-sm px-4 py-3">
+          {warning}
         </div>
       )}
 
-      {payload?.note && !error && (
+      {payload?.note && !warning && (
         <p className="text-xs text-gray-500 border border-gray-100 rounded-xl px-3 py-2 bg-gray-50/80">{payload.note}</p>
       )}
 

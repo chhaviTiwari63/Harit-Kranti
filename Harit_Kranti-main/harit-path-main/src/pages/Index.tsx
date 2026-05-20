@@ -47,10 +47,9 @@ export default function Index() {
           <Sprout className="h-4 w-4 animate-bounce" />
           <span>Next-Generation Agricultural Technology</span>
         </div>
-        <h1 className="text-4xl sm:text-6xl font-extrabold text-green-900 tracking-tight leading-tight">
-          AI-Powered Farm Advisory <br />
+        <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-tight">
           <span className="bg-gradient-to-r from-green-600 to-emerald-700 bg-clip-text text-transparent">
-            & Pest Detection
+            Smart Kheti
           </span>
         </h1>
         <p className="text-lg sm:text-xl text-gray-600 max-w-3xl mx-auto font-medium">

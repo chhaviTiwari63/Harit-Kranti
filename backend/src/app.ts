@@ -6,6 +6,7 @@ import path from "path";
 
 import pestRoutes from "./routes/pestRoutes";
 import userRoutes from "./routes/userRoutes";
+import marketRoutes from "./routes/marketRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 // Routes
 app.use("/api/pest", pestRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/market", marketRoutes);
 
 // Global error handler
 app.use(errorHandler);

@@ -1,4 +1,7 @@
 {
+  "scripts": {
+    "start": "npm run start --prefix Harit_Kranti-main"
+  },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.10",
     "axios": "^1.12.2",

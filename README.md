@@ -142,7 +142,7 @@ Harit-Kranti/
 │   │       └── upload.ts              # Multer storage configuration for uploaded images
 │   └── uploads/                       # Temporary storage directory for uploaded plant images
 │
-└── harit-path-main/                   # React + TypeScript + Vite Frontend App
+└── frontend/                   # React + TypeScript + Vite Frontend App
     ├── package.json                   # Frontend dependencies & Vite scripts
     ├── vite.config.ts                 # Vite build configuration
     ├── index.html                     # HTML5 Root Entry
@@ -238,7 +238,7 @@ GEMINI_API_KEY=your_google_gemini_api_key_here
 DATA_GOV_IN_API_KEY=your_data_gov_in_api_key_here
 ```
 
-For the frontend (`harit-path-main/`), create a `.env` or `.env.local` file:
+For the frontend (`frontend/`), create a `.env` or `.env.local` file:
 
 ```env
 VITE_API_BASE_URL=http://localhost:5000/api
@@ -288,7 +288,7 @@ Open a new terminal window:
 
 ```bash
 # Navigate to the frontend directory
-cd harit-path-main
+cd frontend
 
 # Install dependencies
 npm install
@@ -312,7 +312,7 @@ npm run build
 npm run start
 
 # Build Frontend Bundle
-cd harit-path-main
+cd frontend
 npm run build
 ```
 
